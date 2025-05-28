@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zeno Emara – Value‑Prop Match Game</title>
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f5f7fa;margin:0;display:flex;flex-direction:column;min-height:100vh}
+    header{background:#252a34;color:#fff;padding:1rem;text-align:center}
+    main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:1.5rem;max-width:900px;margin:auto;width:100%}
+
+    /* ---------- Intro ---------- */
+    #startScreen{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:2rem;text-align:center;width:100%}
+    #startBtn{margin-top:1rem;padding:.8rem 1.6rem;border:none;border-radius:8px;background:#26c485;color:#fff;font-size:1rem;cursor:pointer;transition:background .2s}
+    #startBtn:hover{background:#1da774}
+
+    /* ---------- Game ---------- */
+    #gameContainer{display:none;width:100%}
+    #progress{height:8px;background:#d9d9d9;border-radius:4px;overflow:hidden;margin-bottom:1rem}
+    #progressBar{height:100%;width:0;background:#26c485;transition:width .3s}
+
+    #personaCard{background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1);padding:1.5rem;width:100%;margin-bottom:1.5rem}
+    #options{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;width:100%}
+    .option{background:#fff;border:2px solid #d9d9d9;border-radius:10px;padding:1rem;cursor:pointer;transition:all .2s}
+    .option:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+    .option.correct{border-color:#26c485;background:#e7f9f0}
+    .option.wrong{border-color:#e84545;background:#fdecec}
+    #feedback{margin-top:1rem;font-weight:bold;min-height:2rem}
+    #nextBtn{margin-top:1.5rem;padding:.75rem 1.5rem;border:none;border-radius:8px;background:#252a34;color:#fff;font-size:1rem;cursor:pointer;display:none}
+    #scoreBoard{margin-top:1rem;font-size:.9rem;color:#333}
+    #trophy{font-size:3rem;margin-top:1rem}
+
+    footer{background:#fff;padding:.5rem;text-align:center;font-size:.75rem;color:#555;border-top:1px solid #e0e0e0}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Match the Persona with the Winning Feature!</h1>
+    <p>Can you choose the Zeno Emara feature that delivers the most value?</p>
+  </header>
+  <main>
+    <!-- ---------- Intro Screen ---------- -->
+    <div id="startScreen">
+      <h2>Welcome to the Zeno Emara Value‑Proposition Micro‑Simulation</h2>
+      <p>You’ll face <strong>5 customer personas</strong>. For each one, pick the motorcycle feature that best solves their biggest pain‑point. Earn points, grab a trophy, and see how product attributes map to segment needs—core STP in action.</p>
+      <button id="startBtn">Start Simulation ▶</button>
+    </div>
+
+    <!-- ---------- Game Area ---------- -->
+    <div id="gameContainer">
+      <div id="progress"><div id="progressBar"></div></div>
+
+      <div id="personaCard">
+        <h2 id="personaName"></h2>
+        <p id="personaDesc"></p>
+      </div>
+
+      <div id="options"></div>
+
+      <div id="feedback"></div>
+      <button id="nextBtn">Next Persona</button>
+      <div id="scoreBoard"></div>
+      <div id="trophy"></div>
+    </div>
+  </main>
+  <footer>Edited by Dr. Pravat, GIM. It is free for students. Teachers may reach out for a Teaching Note.</footer>
+
+  <script>
+    /* ---------- Features (India Today, 20 May 2025) ---------- */
+    const FEATURES=[
+      {tag:"Multi‑modal charging (swap / fast / home)",benefit:"It eliminates range anxiety by letting riders top up anywhere, anytime."},
+      {tag:"250 kg load capacity — highest in class",benefit:"Heavy crates, pillion riders, or luggage won’t bog the bike down."},
+      {tag:"Battery‑as‑a‑Service: pay just ₹64k upfront",benefit:"Low entry price plus energy subscription plans keeps wallets happy."},
+      {tag:"Sport‑Utility build: 190 mm clearance & rugged frame",benefit:"Shrugs off potholes and dirt tracks yet still looks sharp in the city."},
+      {tag:"100 km real‑world range (expandable)",benefit:"Finish an entire day’s commute without a midday charge stop."},
+      {tag:"95 km/h top speed from 8 kW motor",benefit:"Keeps pace with highway traffic and offers confident overtakes."},
+      {tag:"Up to 150 L lockable storage (accessory)",benefit:"Haul bulky items safely—turning the bike into a mini‑cargo machine."}
+    ];
+
+    /* ---------- Personas ---------- */
+    const PERSONAS=[
+      {name:"Meena – Delivery Pro",desc:"25‑year‑old Bengaluru food‑delivery rider carrying multiple orders and sometimes a grocery crate.",correct:1},
+      {name:"Raj – Budget‑savvy Student",desc:"21‑year‑old college student who wants an affordable EV without big upfront cash.",correct:2},
+      {name:"Arjun – Urban Commuter",desc:"35‑year‑old office‑goer clocking 40 km daily and worried about apartment charging.",correct:0},
+      {name:"Kavita – Adventure Enthusiast",desc:"29‑year‑old weekend explorer tackling broken village roads and hill trails.",correct:3},
+      {name:"Rohit – Tech‑Performance Seeker",desc:"40‑year‑old tech manager who loves quick overtakes and occasional expressway rides.",correct:5}
+    ];
+
+    /* ---------- State ---------- */
+    let shuffledPersonas=[];
+    let currentIndex=0;
+    let score=0;
+
+    /* ---------- Helpers ---------- */
+    function shuffle(arr){for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[arr[i],arr[j]]=[arr[j],arr[i]];}return arr;}
+
+    /* ---------- DOM ---------- */
+    const startScreen=document.getElementById('startScreen');
+    const gameContainer=document.getElementById('gameContainer');
+    const startBtn=document.getElementById('startBtn');
+    const personaNameEl=document.getElementById('personaName');
+    const personaDescEl=document.getElementById('personaDesc');
+    const optionsContainer=document.getElementById('options');
+    const feedbackEl=document.getElementById('feedback');
+    const nextBtn=document.getElementById('nextBtn');
+    const scoreBoardEl=document.getElementById('scoreBoard');
+    const progressBar=document.getElementById('progressBar');
+    const trophyEl=document.getElementById('trophy');
+
+    /* ---------- Start ---------- */
+    startBtn.addEventListener('click',()=>{
+      shuffledPersonas=[...PERSONAS];
+      shuffle(shuffledPersonas);
+      currentIndex=0;score=0;
+      startScreen.style.display='none';
+      gameContainer.style.display='block';
+      loadPersona();
+    });
+
+    /* ---------- Load Persona ---------- */
+    function loadPersona(){
+      feedbackEl.textContent='';
+      trophyEl.textContent='';
+      nextBtn.style.display='none';
+
+      if(currentIndex>=shuffledPersonas.length){
+        showFinalResults();
+        return;
+      }
+
+      progressBar.style.width=((currentIndex)/PERSONAS.length*100)+'%';
+
+      const p=shuffledPersonas[currentIndex];
+      personaNameEl.textContent=p.name;
+      personaDescEl.textContent=p.desc;
+
+      // build option set: correct + 3 random others
+      const selected=new Set([p.correct]);
+      while(selected.size<4){selected.add(Math.floor(Math.random()*FEATURES.length));}
+      const optionIdxs=shuffle(Array.from(selected));
+
+      optionsContainer.innerHTML='';
+      optionIdxs.forEach(idx=>{
+        const card=document.createElement('div');
+        card.className='option';
+        card.dataset.fidx=idx;
+        card.innerHTML=`<strong>${FEATURES[idx].tag}</strong><br><small>${FEATURES[idx].benefit}</small>`;
+        card.addEventListener('click',handleChoice);
+        optionsContainer.appendChild(card);
+      });
+
+      scoreBoardEl.textContent=`Score: ${score}/${PERSONAS.length}`;
+    }
+
+    /* ---------- Handle Choice ---------- */
+    function handleChoice(e){
+      const chosen=Number(e.currentTarget.dataset.fidx);
+      const p=shuffledPersonas[currentIndex];
+      const personaShort=p.name.split(' –')[0];
+
+      document.querySelectorAll('.option').forEach(opt=>opt.removeEventListener('click',handleChoice));
+      document.querySelectorAll('.option').forEach(opt=>{
+        const idx=Number(opt.dataset.fidx);
+        if(idx===p.correct) opt.classList.add('correct');
+        else if(idx===chosen) opt.classList.add('wrong');
+      });
+
+      if(chosen===p.correct){
+        feedbackEl.textContent=`Correct! 🎉 ${FEATURES[p.correct].benefit} This clearly solves ${personaShort}'s main need.`;
+        score++;
+      }else{
+        feedbackEl.textContent=`Not quite. The ideal pick was “${FEATURES[p.correct].tag}.” ${FEATURES[p.correct].benefit} That feature aligns closest with ${personaShort}'s pain‑point.`;
+      }
+
+      nextBtn.style.display='inline-block';
+    }
+
+    nextBtn.addEventListener('click',()=>{currentIndex++;loadPersona();});
+
+    /* ---------- Final ---------- */
+    function showFinalResults(){
+      progressBar.style.width='100%';
+      personaNameEl.textContent='Game Over!';
+      personaDescEl.textContent=`You matched ${score} of ${PERSONAS.length} personas correctly.`;
+      optionsContainer.innerHTML='';
+      feedbackEl.textContent='';
+      nextBtn.style.display='none';
+      scoreBoardEl.textContent='Refresh to play again.';
+      trophyEl.textContent=(score===5)?'🏆 Gold':(score>=3)?'🥈 Silver':(score>=1)?'🥉 Bronze':'👍 Keep Practicing';
+    }
+  </script>
+</body>
+</html>
